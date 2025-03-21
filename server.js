@@ -46,11 +46,22 @@ app.get("/users", (req, res) => {
 // Registro de usuario
 app.post("/register", (req, res) => {
   const { name, surname, dni, tlf, email, password } = req.body;
+
+  // Verificar que los campos llegan correctamente
+  if (!name || !surname || !dni || !tlf || !email || !password) {
+    return res.status(400).json({ error: "Todos los campos son obligatorios" });
+  }
+
   db.query(
     "INSERT INTO users (name, surname, dni, tlf, email, password, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
     [name, surname, dni, tlf, email, password, "user"],
     (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {
+        console.error("Error en la base de datos:", err); // 📌 Imprimir error en la terminal
+        return res
+          .status(500)
+          .json({ error: "Error en el servidor", details: err.message });
+      }
       res.json({ message: "Usuario registrado", id: result.insertId });
     }
   );
@@ -79,9 +90,65 @@ app.post("/login", (req, res) => {
       const role = user.role;
       const name = user.name;
       const email = user.email;
-      res.json({ message: "Login correcto", token, role, name, email });
+      const tlf = user.tlf;
+      const dni = user.dni;
+      const surname = user.surname;
+      const id = user.id;
+      res.json({
+        message: "Login correcto",
+        token,
+        role,
+        name,
+        email,
+        tlf,
+        dni,
+        surname,
+        id,
+      });
     }
   );
+});
+
+// 📌 Middleware para validar el token
+const authenticateToken = (req, res, next) => {
+  const token = req.header("Authorization")?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Acceso denegado" });
+
+  jwt.verify(token, "secreto", (err, user) => {
+    if (err) return res.status(403).json({ error: "Token inválido" });
+    req.user = user;
+    next();
+  });
+};
+
+// 📌 Actualizar perfil
+app.put("/update-profile", authenticateToken, async (req, res) => {
+  const { name, surname, dni, tlf, email, password } = req.body;
+  const userId = req.user.id; // 📌 Sacamos el ID del usuario logueado
+
+  try {
+    // 📌 Si el usuario quiere cambiar la contraseña, la encriptamos
+    let hashedPassword = null;
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
+    }
+
+    // 📌 Actualizar los datos en la BD
+    db.query(
+      `UPDATE users SET name = ?, surname = ?, dni = ?, tlf = ?, email = ? 
+       ${password ? ", password = ?" : ""} WHERE id = ?`,
+      password
+        ? [name, surname, dni, tlf, email, hashedPassword, userId]
+        : [name, surname, dni, tlf, email, userId],
+      (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Perfil actualizado correctamente" });
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ error: "Error actualizando el perfil" });
+  }
 });
 
 // 📌 Rutas para CITAS
