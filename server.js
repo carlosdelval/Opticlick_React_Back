@@ -77,7 +77,9 @@ app.post("/login", (req, res) => {
 
       const token = jwt.sign({ id: user.id }, "secreto", { expiresIn: "1h" });
       const role = user.role;
-      res.json({ message: "Login correcto", token, role });
+      const name = user.name;
+      const email = user.email;
+      res.json({ message: "Login correcto", token, role, name, email });
     }
   );
 });
