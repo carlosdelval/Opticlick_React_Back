@@ -43,7 +43,6 @@ app.get("/users", (req, res) => {
   });
 });
 
-// Registro de usuario
 app.post("/register", (req, res) => {
   const { name, surname, dni, tlf, email, password } = req.body;
 
@@ -52,16 +51,32 @@ app.post("/register", (req, res) => {
     return res.status(400).json({ error: "Todos los campos son obligatorios" });
   }
 
+  // Registro de usuario
   db.query(
     "INSERT INTO users (name, surname, dni, tlf, email, password, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
     [name, surname, dni, tlf, email, password, "user"],
     (err, result) => {
       if (err) {
         console.error("Error en la base de datos:", err); // 📌 Imprimir error en la terminal
-        return res
-          .status(500)
-          .json({ error: "Error en el servidor", details: err.message });
+
+        // Manejar el error 1062 (clave duplicada)
+        if (err.errno === 1062) {
+          return res.status(400).json({
+            error: "Error de duplicación",
+            errno: err.errno, // Devolver el código de error
+            sqlMessage: err.sqlMessage, // Devolver el mensaje de SQL
+          });
+        }
+
+        // Otros errores de la base de datos
+        return res.status(500).json({
+          error: "Error en el servidor",
+          details: err.message,
+          errno: err.errno, // Devolver el código de error
+        });
       }
+
+      // Éxito
       res.json({ message: "Usuario registrado", id: result.insertId });
     }
   );
