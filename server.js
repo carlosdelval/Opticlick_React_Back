@@ -168,7 +168,7 @@ app.put("/update-profile", authenticateToken, async (req, res) => {
 
 // 📌 Rutas para CITAS
 app.get("/citas", (req, res) => {
-  db.query("SELECT * FROM citas", (err, results) => {
+  db.query("SELECT * FROM citas WHERE graduada = 0", (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
