@@ -37,7 +37,7 @@ app.get("/", (req, res) => {
 
 // 📌 Rutas para USUARIOS
 app.get("/users", (req, res) => {
-  db.query("SELECT * FROM users", (err, results) => {
+  db.query("SELECT * FROM users WHERE role='user'", (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
@@ -172,6 +172,18 @@ app.get("/citas", (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
+});
+
+app.get("/citas-user/:id", (req, res) => {
+  const { id } = req.params;
+  db.query(
+    "SELECT * FROM users WHERE id = ?",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
 });
 
 app.post("/citas", (req, res) => {
