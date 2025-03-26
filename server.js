@@ -166,9 +166,62 @@ app.put("/update-profile", authenticateToken, async (req, res) => {
   }
 });
 
+// 📌 Eliminar usuario
+
+app.delete("/users/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("DELETE FROM users WHERE id = ?", [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: "Usuario eliminado" });
+  });
+});
+
+// 📌 Update SOLO contraseña
+
+app.put("/update-password", authenticateToken, async (req, res) => {
+  const { password, new_password } = req.body;
+  const userId = req.user.id; // 📌 Sacamos el ID del usuario logueado
+
+  try {
+    // 📌 Buscar el usuario en la BD
+    db.query(
+      "SELECT * FROM users WHERE id = ?",
+      [userId],
+      async (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        if (results.length === 0)
+          return res.status(404).json({ error: "Usuario no encontrado" });
+
+        const user = results[0];
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch)
+          return res.status(401).json({ error: "Contraseña incorrecta" });
+
+        // 📌 Encriptar la nueva contraseña
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(new_password, salt);
+
+        // 📌 Actualizar la contraseña en la BD
+        db.query(
+          "UPDATE users SET password = ? WHERE id = ?",
+          [hashedPassword, userId],
+          (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: "Contraseña actualizada correctamente" });
+          }
+        );
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ error: "Error actualizando la contraseña" });
+  }
+});
+
 // 📌 Rutas para CITAS
 app.get("/citas", (req, res) => {
-  db.query("SELECT * FROM citas WHERE graduada = 0", (err, results) => {
+  db.query("SELECT * FROM citas WHERE graduada = 0 ORDER BY fecha,hora", (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
