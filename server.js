@@ -53,7 +53,7 @@ app.post("/register", (req, res) => {
 
   // Registro de usuario
   db.query(
-    "INSERT INTO users (name, surname, dni, tlf, email, password, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO users (name, surname, dni, tlf, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
     [name, surname, dni, tlf, email, password, "user"],
     (err, result) => {
       if (err) {
@@ -152,7 +152,7 @@ app.put("/update-profile", authenticateToken, async (req, res) => {
     // 📌 Actualizar los datos en la BD
     db.query(
       `UPDATE users SET name = ?, surname = ?, dni = ?, tlf = ?, email = ? 
-       ${password ? ", password = ?" : ""} WHERE id = ?`,
+       ${password ? ", password = ?" : ", updated_at = NOW()"} WHERE id = ?`,
       password
         ? [name, surname, dni, tlf, email, hashedPassword, userId]
         : [name, surname, dni, tlf, email, userId],
@@ -242,7 +242,7 @@ app.get("/citas-user/:id", (req, res) => {
 app.post("/citas", (req, res) => {
   const { cliente_id, fecha, hora } = req.body;
   db.query(
-    "INSERT INTO citas (cliente_id, fecha, hora) VALUES (?, ?, ?)",
+    "INSERT INTO citas (cliente_id, fecha, hora, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
     [cliente_id, fecha, hora],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -256,6 +256,36 @@ app.delete("/citas/:id", (req, res) => {
   db.query("DELETE FROM citas WHERE id = ?", [id], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: "Cita eliminada" });
+  });
+});
+
+// 📌 Rutas para GRADUACIONES
+
+app.get("/graduaciones/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("SELECT * FROM graduaciones WHERE cita_id = ?", [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+app.post("/graduaciones", (req, res) => {
+  db.query(
+    "INSERT INTO graduaciones (cita_id, eje, cilindro, esfera, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())",
+    [req.body.cita_id, req.body.eje, req.body.cilindro, req.body.esfera],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Graduación registrada", id: result.insertId });
+    }
+  );
+});
+
+// 📌 Marcar cita como graduada
+app.put("/citas/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("UPDATE citas SET graduada = 1 WHERE id = ?", [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: "Cita graduada" });
   });
 });
 
