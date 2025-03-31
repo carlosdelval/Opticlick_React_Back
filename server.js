@@ -43,6 +43,18 @@ app.get("/users", (req, res) => {
   });
 });
 
+app.put("/users", (req, res) => {
+  const { id, name, surname, dni, tlf, email } = req.body;
+  db.query(
+    "UPDATE users SET name = ?, surname = ?, dni = ?, tlf = ?, email = ?, updated_at = NOW() WHERE id = ?",
+    [name, surname, dni, tlf, email, id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Usuario actualizado" });
+    }
+  );
+});
+
 app.post("/register", (req, res) => {
   const { name, surname, dni, tlf, email, password } = req.body;
 
@@ -101,7 +113,7 @@ app.post("/login", (req, res) => {
       if (!isMatch)
         return res.status(401).json({ error: "Contraseña incorrecta" });
 
-      const token = jwt.sign({ id: user.id }, "secreto", { expiresIn: "1h" });
+      const token = jwt.sign({ id: user.id }, "secreto", { expiresIn: "24h" });
       const role = user.role;
       const name = user.name;
       const email = user.email;
@@ -130,7 +142,7 @@ const authenticateToken = (req, res, next) => {
   if (!token) return res.status(401).json({ error: "Acceso denegado" });
 
   jwt.verify(token, "secreto", (err, user) => {
-    if (err) return res.status(403).json({ error: "Token inválido" });
+    if (err) return res.status(403).json({ error: "Su inicio de sesión ha caducado, debe logear de nuevo." });
     req.user = user;
     next();
   });
@@ -221,22 +233,30 @@ app.put("/update-password", authenticateToken, async (req, res) => {
 
 // 📌 Rutas para CITAS
 app.get("/citas", (req, res) => {
-  db.query("SELECT * FROM citas WHERE graduada = 0 ORDER BY fecha,hora", (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
-  });
-});
-
-app.get("/citas-user/:id", (req, res) => {
-  const { id } = req.params;
   db.query(
-    "SELECT * FROM users WHERE id = ?",
-    [id],
+    "SELECT * FROM citas WHERE graduada = 0 ORDER BY fecha,hora",
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json(results);
     }
   );
+});
+
+//Obtener todas las citas de un usuario
+app.get("/citas-user/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("SELECT * FROM citas WHERE user_id = ? ORDER BY fecha,hora", [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+app.get("/user-citas/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("SELECT * FROM users WHERE id = ?", [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
 });
 
 app.post("/citas", (req, res) => {
@@ -263,10 +283,14 @@ app.delete("/citas/:id", (req, res) => {
 
 app.get("/graduaciones/:id", (req, res) => {
   const { id } = req.params;
-  db.query("SELECT * FROM graduaciones WHERE cita_id = ?", [id], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
-  });
+  db.query(
+    "SELECT * FROM graduaciones WHERE cita_id = ?",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
 });
 
 app.post("/graduaciones", (req, res) => {
@@ -283,10 +307,14 @@ app.post("/graduaciones", (req, res) => {
 // 📌 Marcar cita como graduada
 app.put("/citas/:id", (req, res) => {
   const { id } = req.params;
-  db.query("UPDATE citas SET graduada = 1 WHERE id = ?", [id], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: "Cita graduada" });
-  });
+  db.query(
+    "UPDATE citas SET graduada = 1 WHERE id = ?",
+    [id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Cita graduada" });
+    }
+  );
 });
 
 // Escuchar en el puerto
