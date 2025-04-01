@@ -49,7 +49,21 @@ app.put("/users", (req, res) => {
     "UPDATE users SET name = ?, surname = ?, dni = ?, tlf = ?, email = ?, updated_at = NOW() WHERE id = ?",
     [name, surname, dni, tlf, email, id],
     (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
+      // Check for duplicate email or dni error
+      if (err) {
+        if (err.errno === 1062) {
+          // Duplicate key error
+          if (err.message.includes("email")) {
+            return res
+              .status(400)
+              .json({ error: "El email ya está registrado" });
+          } else if (err.message.includes("dni")) {
+            return res.status(400).json({ error: "El DNI ya está registrado" });
+          }
+          return res.status(400).json({ error: "Registro duplicado" });
+        }
+        return res.status(500).json({ error: err.message });
+      }
       res.json({ message: "Usuario actualizado" });
     }
   );
@@ -142,7 +156,10 @@ const authenticateToken = (req, res, next) => {
   if (!token) return res.status(401).json({ error: "Acceso denegado" });
 
   jwt.verify(token, "secreto", (err, user) => {
-    if (err) return res.status(403).json({ error: "Su inicio de sesión ha caducado, debe logear de nuevo." });
+    if (err)
+      return res.status(403).json({
+        error: "Su inicio de sesión ha caducado, debe logear de nuevo.",
+      });
     req.user = user;
     next();
   });
@@ -245,10 +262,27 @@ app.get("/citas", (req, res) => {
 //Obtener todas las citas de un usuario
 app.get("/citas-user/:id", (req, res) => {
   const { id } = req.params;
-  db.query("SELECT * FROM citas WHERE user_id = ? ORDER BY fecha,hora", [id], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
-  });
+  db.query(
+    "SELECT c.*, o.nombre as optica_nombre FROM citas c JOIN opticas o ON c.optica_id = o.id WHERE c.user_id = ? ORDER BY c.fecha, c.hora",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
+//Obtener todas las citas graduadas de un usuario
+app.get("/citas-graduadas/:id", (req, res) => {
+  const { id } = req.params;
+  db.query(
+    "SELECT c.*, o.nombre as optica_nombre FROM citas c JOIN opticas o ON c.optica_id = o.id WHERE c.user_id = ? AND c.graduada = 1 ORDER BY c.fecha, c.hora",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
 });
 
 app.get("/user-citas/:id", (req, res) => {
@@ -259,11 +293,24 @@ app.get("/user-citas/:id", (req, res) => {
   });
 });
 
-app.post("/citas", (req, res) => {
-  const { cliente_id, fecha, hora } = req.body;
+//obtener cita por fecha, hora y optica_id
+app.get("/citas/:fecha/:hora/:optica_id", (req, res) => {
+  const { fecha, hora, optica_id } = req.params;
   db.query(
-    "INSERT INTO citas (cliente_id, fecha, hora, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
-    [cliente_id, fecha, hora],
+    "SELECT * FROM citas WHERE fecha = ? AND hora = ? AND optica_id = ?",
+    [fecha, hora, optica_id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
+app.post("/citas", (req, res) => {
+  const { user_id, optica_id, fecha, hora } = req.body;
+  db.query(
+    "INSERT INTO citas (user_id, optica_id, fecha, hora, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())",
+    [user_id, optica_id, fecha, hora],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message: "Cita registrada", id: result.insertId });
@@ -284,11 +331,13 @@ app.delete("/citas/:id", (req, res) => {
 app.get("/graduaciones/:id", (req, res) => {
   const { id } = req.params;
   db.query(
-    "SELECT * FROM graduaciones WHERE cita_id = ?",
+    "SELECT eje,cilindro,esfera FROM graduaciones WHERE cita_id = ?",
     [id],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json(results);
+
+      // Devuelve el primer resultado o null si no hay registros
+      res.json(results[0] || null);
     }
   );
 });
@@ -315,6 +364,22 @@ app.put("/citas/:id", (req, res) => {
       res.json({ message: "Cita graduada" });
     }
   );
+});
+
+// 📌 Rutas para ÓPTICAS
+app.get("/opticas", (req, res) => {
+  db.query("SELECT * FROM opticas", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+app.get("/opticas/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("SELECT * FROM opticas WHERE id = ?", [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
 });
 
 // Escuchar en el puerto
