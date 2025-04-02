@@ -43,6 +43,19 @@ app.get("/users", (req, res) => {
   });
 });
 
+// Obtener usuarios por óptica
+app.get("/users/:id", (req, res) => {
+  const { id } = req.params;
+  db.query(
+    "SELECT * FROM users u JOIN citas c ON u.id = c.user_id WHERE u.role='user' AND c.optica_id = ? GROUP BY u.id",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
 app.put("/users", (req, res) => {
   const { id, name, surname, dni, tlf, email } = req.body;
   db.query(
