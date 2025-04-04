@@ -43,6 +43,15 @@ app.get("/users", (req, res) => {
   });
 });
 
+// Obtener usuario por id
+app.get("/users/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("SELECT * FROM users WHERE id = ?", [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results[0]);
+  });
+});
+
 // Obtener usuarios por óptica
 app.get("/users/:id", (req, res) => {
   const { id } = req.params;
@@ -85,26 +94,24 @@ app.put("/users", (req, res) => {
 app.post("/register", (req, res) => {
   const { name, surname, dni, tlf, email, password } = req.body;
 
-  // Verificar que los campos llegan correctamente
-  if (!name || !surname || !dni || !tlf || !email || !password) {
-    return res.status(400).json({ error: "Todos los campos son obligatorios" });
-  }
-
   // Registro de usuario
   db.query(
-    "INSERT INTO users (name, surname, dni, tlf, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
-    [name, surname, dni, tlf, email, password, "user"],
+    "INSERT INTO users (name, surname, dni, tlf, email, password, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
+    [name, surname, dni, tlf, email, password],
     (err, result) => {
+      // Check for duplicate email or dni error
       if (err) {
         console.error("Error en la base de datos:", err); // 📌 Imprimir error en la terminal
-
-        // Manejar el error 1062 (clave duplicada)
         if (err.errno === 1062) {
-          return res.status(400).json({
-            error: "Error de duplicación",
-            errno: err.errno, // Devolver el código de error
-            sqlMessage: err.sqlMessage, // Devolver el mensaje de SQL
-          });
+          // Duplicate key error
+          if (err.message.includes("email")) {
+            return res
+              .status(400)
+              .json({ error: "El email ya está registrado" });
+          } else if (err.message.includes("dni")) {
+            return res.status(400).json({ error: "El DNI ya está registrado" });
+          }
+          return res.status(400).json({ error: "Registro duplicado" });
         }
 
         // Otros errores de la base de datos
@@ -362,6 +369,30 @@ app.post("/graduaciones", (req, res) => {
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message: "Graduación registrada", id: result.insertId });
+    }
+  );
+});
+
+app.put("/graduaciones/:id", (req, res) => {
+  const { id } = req.params;
+  db.query(
+    "UPDATE graduaciones SET eje = ?, cilindro = ?, esfera = ? WHERE cita_id = ?",
+    [req.body.eje, req.body.cilindro, req.body.esfera, id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Graduación actualizada" });
+    }
+  );
+});
+
+app.delete("/graduaciones/:id", (req, res) => {
+  const { id } = req.params;
+  db.query(
+    "DELETE FROM graduaciones WHERE cita_id = ?",
+    [id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Graduación eliminada" });
     }
   );
 });
