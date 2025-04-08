@@ -9,8 +9,6 @@ import bcrypt from "bcryptjs";
 dotenv.config();
 
 const app = express();
-const verifyToken = require("./middlewares/verifyToken.js"); // Importar el middleware de verificación de token
-const authorizeRole = require("./middlewares/authorizeRole.js"); // Importar el middleware de autorización de rol
 const port = process.env.PORT || 5000;
 
 app.use(cors());
