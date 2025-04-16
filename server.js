@@ -43,6 +43,50 @@ app.get("/users", (req, res) => {
   });
 });
 
+app.get("/admins", (req, res) => {
+  db.query("SELECT u.*, ao.optica_id FROM users u JOIN admins_opticas ao ON u.id = ao.user_id WHERE u.role='admin'", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+// Obtener óptica de un admin
+app.get("/optica-admin/:id", (req, res) => {
+  const { id } = req.params;
+  db.query(
+    "SELECT optica_id FROM admins_opticas WHERE user_id=?",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results[0] || null); // Devuelve el primer resultado o null si no hay registros
+    }
+  );
+});
+// Obtener admins de una óptica
+app.get("/admins-optica/:id", (req, res) => {
+  const { id } = req.params;
+  db.query(
+    "SELECT * FROM users u JOIN admins_opticas ao ON u.id = ao.user_id WHERE u.role='admin' AND ao.optica_id = ?",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
+// Asignar óptica a un admin
+app.put("/admins-optica", (req, res) => {
+  const { user_id, optica_id } = req.body;
+  db.query(
+    "INSERT INTO admins_opticas (user_id, optica_id) VALUES (?, ?) ON DUPLICATE optica_id UPDATE optica_id = ?",
+    [user_id, optica_id, optica_id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Óptica asignada al admin" });
+    }
+  );
+});
+
 // Obtener usuario por id
 app.get("/users/:id", (req, res) => {
   const { id } = req.params;
@@ -92,12 +136,12 @@ app.put("/users", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-  const { name, surname, dni, tlf, email, password } = req.body;
+  const { name, surname, dni, tlf, email, password, role } = req.body;
 
   // Registro de usuario
   db.query(
-    "INSERT INTO users (name, surname, dni, tlf, email, password, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
-    [name, surname, dni, tlf, email, password],
+    "INSERT INTO users (name, surname, dni, tlf, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
+    [name, surname, dni, tlf, email, password, role],
     (err, result) => {
       // Check for duplicate email or dni error
       if (err) {
@@ -321,7 +365,7 @@ app.get("/citas/:fecha/:hora/:optica_id", (req, res) => {
     [fecha, hora, optica_id],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json(results);
+      res.json(results[0] || null); // Devuelve el primer resultado o null si no hay registros
     }
   );
 });
