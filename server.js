@@ -6,6 +6,9 @@ import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
+import { v4 as uuidv4 } from "uuid";
+import { sendVerificationEmail } from "./servicios/email.js";
+
 dotenv.config();
 
 const app = express();
@@ -44,10 +47,13 @@ app.get("/users", (req, res) => {
 });
 
 app.get("/admins", (req, res) => {
-  db.query("SELECT u.*, ao.optica_id FROM users u JOIN admins_opticas ao ON u.id = ao.user_id WHERE u.role='admin'", (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
-  });
+  db.query(
+    "SELECT u.*, ao.optica_id FROM users u JOIN admins_opticas ao ON u.id = ao.user_id WHERE u.role='admin'",
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
 });
 // Obtener óptica de un admin
 app.get("/optica-admin/:id", (req, res) => {
@@ -137,17 +143,15 @@ app.put("/users", (req, res) => {
 
 app.post("/register", (req, res) => {
   const { name, surname, dni, tlf, email, password, role } = req.body;
+  const verificationToken = uuidv4();
 
-  // Registro de usuario
   db.query(
-    "INSERT INTO users (name, surname, dni, tlf, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
-    [name, surname, dni, tlf, email, password, role],
-    (err, result) => {
-      // Check for duplicate email or dni error
+    "INSERT INTO users (name, surname, dni, tlf, email, password, role, created_at, updated_at, remember_token) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)",
+    [name, surname, dni, tlf, email, password, role, verificationToken],
+    async (err, result) => {
       if (err) {
-        console.error("Error en la base de datos:", err); // 📌 Imprimir error en la terminal
+        console.error("Error en la base de datos:", err);
         if (err.errno === 1062) {
-          // Duplicate key error
           if (err.message.includes("email")) {
             return res
               .status(400)
@@ -158,16 +162,66 @@ app.post("/register", (req, res) => {
           return res.status(400).json({ error: "Registro duplicado" });
         }
 
-        // Otros errores de la base de datos
         return res.status(500).json({
           error: "Error en el servidor",
           details: err.message,
-          errno: err.errno, // Devolver el código de error
+          errno: err.errno,
         });
       }
 
-      // Éxito
-      res.json({ message: "Usuario registrado", id: result.insertId });
+      // Enviar email de verificación
+      try {
+        await sendVerificationEmail(email, verificationToken);
+        res.json({
+          message:
+            "Usuario registrado. Verifica tu email para activar la cuenta.",
+        });
+      } catch (emailErr) {
+        console.error("Error enviando email:", emailErr.message);
+        res
+          .status(500)
+          .json({ error: "Error enviando el email de verificación" });
+      }
+    }
+  );
+});
+
+// Ruta para verificar el email
+app.get("/verify-email/:token", (req, res) => {
+  const { token } = req.params;
+
+  db.query(
+    "SELECT * FROM users WHERE remember_token = ?",
+    [token],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      if (results.length === 0) {
+        return res.status(400).json({ error: "Token inválido o expirado" });
+      }
+
+      db.query(
+        "UPDATE users SET email_verified_at = ?, remember_token = NULL WHERE remember_token = ?",
+        [new Date(), token],
+        (err2) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+          res.json({
+            message:
+              "Email verificado correctamente. Ahora puedes iniciar sesión.",
+            email: results[0].email,
+            role: results[0].role,
+            name: results[0].name,
+            tlf: results[0].tlf,
+            dni: results[0].dni,
+            surname: results[0].surname,
+            id: results[0].id,
+            email_verified: results[0].email_verified_at,
+            token: jwt.sign({ id: results[0].id }, "secreto", {
+              expiresIn: "24h",
+            }),
+          });
+        }
+      );
     }
   );
 });
@@ -199,6 +253,7 @@ app.post("/login", (req, res) => {
       const dni = user.dni;
       const surname = user.surname;
       const id = user.id;
+      const email_verified = user.email_verified_at;
       res.json({
         message: "Login correcto",
         token,
@@ -209,7 +264,44 @@ app.post("/login", (req, res) => {
         dni,
         surname,
         id,
+        email_verified,
       });
+    }
+  );
+});
+
+// Reenviar email de verificación
+app.post("/resend-email", (req, res) => {
+  const { email } = req.body;
+  const verificationToken = uuidv4();
+  db.query(
+    "UPDATE users SET remember_token = ? WHERE email = ?",
+    [verificationToken, email],
+    async (err, result) => {
+      if (err) {
+        console.error("Error en la base de datos:", err);
+        return res.status(500).json({
+          error: "Error en el servidor",
+          details: err.message,
+          errno: err.errno,
+        });
+      }
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "Usuario no encontrado" });
+      }
+      // Enviar email de verificación
+      try {
+        await sendVerificationEmail(email, verificationToken);
+        res.json({
+          message:
+            "Email de verificación reenviado. Revisa tu bandeja de entrada.",
+        });
+      } catch (emailErr) {
+        console.error("Error enviando email:", emailErr.message);
+        res.status(500).json({
+          error: "Error enviando el email de verificación",
+        });
+      }
     }
   );
 });
