@@ -407,7 +407,7 @@ app.put("/update-password", authenticateToken, async (req, res) => {
 // 📌 Rutas para CITAS
 app.get("/citas", (req, res) => {
   db.query(
-    "SELECT * FROM citas WHERE graduada = 0 ORDER BY fecha,hora",
+    "SELECT c.*, u.name as user_name, u.surname as user_surname, u.tlf as telefono, o.nombre as optica_nombre FROM citas c JOIN users u ON c.user_id = u.id JOIN opticas o ON c.optica_id = o.id WHERE c.graduada = 0 ORDER BY c.fecha, c.hora",
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json(results);
@@ -419,7 +419,7 @@ app.get("/citas", (req, res) => {
 app.get("/citas-user/:id", (req, res) => {
   const { id } = req.params;
   db.query(
-    "SELECT c.*, o.nombre as optica_nombre FROM citas c JOIN opticas o ON c.optica_id = o.id WHERE c.user_id = ? ORDER BY c.fecha, c.hora",
+    "SELECT c.*, o.nombre as optica_nombre FROM citas c JOIN opticas o ON c.optica_id = o.id WHERE c.user_id = ? AND c.graduada = 0 ORDER BY c.fecha, c.hora",
     [id],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -447,6 +447,19 @@ app.get("/user-citas/:id", (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
+});
+
+// Obtener citas sin graduar por óptica
+app.get("/citas-optica/:id", (req, res) => {
+  const { id } = req.params;
+  db.query(
+    "SELECT c.*, u.name as user_name, u.surname as user_surname FROM citas c JOIN users u ON c.user_id = u.id WHERE c.optica_id = ? AND c.graduada = 0 ORDER BY c.fecha, c.hora",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
 });
 
 //obtener cita por fecha, hora y optica_id
