@@ -453,7 +453,7 @@ app.get("/user-citas/:id", (req, res) => {
 app.get("/citas-optica/:id", (req, res) => {
   const { id } = req.params;
   db.query(
-    "SELECT c.*, u.name as user_name, u.surname as user_surname FROM citas c JOIN users u ON c.user_id = u.id WHERE c.optica_id = ? AND c.graduada = 0 ORDER BY c.fecha, c.hora",
+    "SELECT c.*, u.name as user_name, u.surname as user_surname, u.tlf as telefono FROM citas c JOIN users u ON c.user_id = u.id WHERE c.optica_id = ? AND c.graduada = 0 ORDER BY c.fecha, c.hora",
     [id],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
