@@ -9,8 +9,7 @@
 - **CRUD Operations** for:  
   - 👥 User profiles  
   - 🗓️ Appointments  
-  - 👁️ Vision history records  
-- **Data validation** with Joi  
+  - 👁️ Vision history records
 
 ## � Endpoints  
 | Method | Route                | Description              |  
