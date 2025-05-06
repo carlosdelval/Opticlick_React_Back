@@ -7,8 +7,6 @@
 # OptiClick Backend - Eye Care API ⚙️  
 
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)  
 
 > **Final Degree Project Backend** - REST API powering OptiClick's appointment scheduling and patient history features.  
 
@@ -23,8 +21,8 @@
 ## � Endpoints  
 | Method | Route                | Description              |  
 |--------|----------------------|--------------------------|  
-| POST   | `/api/auth/register` | Patient registration     |  
-| GET    | `/api/appointments`  | Fetch booked sessions    |  
+| POST   | `/api/register` | Patient registration     |  
+| GET    | `/api/citas`  | Fetch booked sessions    |  
 
 ## 🚀 Deployment  
 ```bash
