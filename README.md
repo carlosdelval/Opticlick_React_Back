@@ -11,7 +11,7 @@
   - 🗓️ Appointments  
   - 👁️ Vision history records
 
-## � Endpoints  
+## ✈️ Endpoints  
 | Method | Route                | Description              |  
 |--------|----------------------|--------------------------|  
 | POST   | `/api/register` | Patient registration     |  
