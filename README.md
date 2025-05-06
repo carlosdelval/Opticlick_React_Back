@@ -1,24 +1,34 @@
-# OptiClick - Vision Care Platform 👓  
 
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)  
+---
 
-> **Final Degree Project** - A modern React-based platform for opticians and patients to manage eye exams, appointments, and vision history.  
+### **Backend README.md** (Node.js)  
 
-## ✨ Features  
-- **User-friendly interface** for patients to:  
-  - 📅 Book eye-test appointments  
-  - 📊 View their vision history (prescriptions, eye conditions)  
-  - 🔐 Secure authentication (JWT)  
-- **Admin dashboard** for opticians to:  
-  - 👁️ Track patient records  
-  - 🗓️ Manage appointments  
-- **Responsive design** (mobile & desktop)  
+```markdown
+# OptiClick Backend - Eye Care API ⚙️  
 
-## 🚀 Quick Start  
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)  
+
+> **Final Degree Project Backend** - REST API powering OptiClick's appointment scheduling and patient history features.  
+
+## 🔧 Key Functionality  
+- **Authentication** (JWT) for patients/opticians  
+- **CRUD Operations** for:  
+  - 👥 User profiles  
+  - 🗓️ Appointments  
+  - 👁️ Vision history records  
+- **Data validation** with Joi  
+
+## � Endpoints  
+| Method | Route                | Description              |  
+|--------|----------------------|--------------------------|  
+| POST   | `/api/auth/register` | Patient registration     |  
+| GET    | `/api/appointments`  | Fetch booked sessions    |  
+
+## 🚀 Deployment  
 ```bash
-git clone https://github.com/carlosdelval/Opticlick_React_Front.git
-cd Opticlick_React_Front
+git clone https://github.com/carlosdelval/Opticlick_Backend.git
 npm install
-npm start
+npm run dev  # Development
+npm start    # Production
