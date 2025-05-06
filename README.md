@@ -1,9 +1,3 @@
-
----
-
-### **Backend README.md** (Node.js)  
-
-```markdown
 # OptiClick Backend - Eye Care API ⚙️  
 
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
