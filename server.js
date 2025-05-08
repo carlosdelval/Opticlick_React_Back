@@ -462,6 +462,19 @@ app.get("/citas-optica/:id", (req, res) => {
   );
 });
 
+// Obtener las horas de las citas reservadas en una fecha de una optica
+app.get("/citas-reservadas/:id/:fecha", (req, res) => {
+  const { id, fecha } = req.params;
+  db.query(
+    "SELECT * FROM citas WHERE optica_id = ? AND fecha = ?",
+    [id, fecha],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
 //obtener cita por fecha, hora y optica_id
 app.get("/citas/:fecha/:hora/:optica_id", (req, res) => {
   const { fecha, hora, optica_id } = req.params;
