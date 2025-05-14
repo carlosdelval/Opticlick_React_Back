@@ -588,6 +588,47 @@ app.get("/opticas/:id", (req, res) => {
   });
 });
 
+//📌 Rutas para NOTIFICACIONES
+app.get("/notificaciones/:id/:tipo", (req, res) => {
+  const { id, tipo } = req.params;
+  db.query(
+    "SELECT * FROM notificaciones WHERE user_id = ? AND tipo = ? AND leida = 0 ORDER BY created_at DESC",
+    [id, tipo],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
+//Crear notificación
+app.post("/notificaciones", (req, res) => {
+  const { user_id, optica_id, titulo, descripcion, tipo } = req.body;
+  db.query(
+    "INSERT INTO notificaciones (optica_id, user_id, titulo, descripcion, tipo, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+    [optica_id, user_id, titulo, descripcion, tipo],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Notificación registrada", id: result.insertId });
+    }
+  );
+});
+
+//Marcar notificación como leída
+app.put("/notificaciones/:id", (req, res) => {
+  const { id } = req.params;
+  db.query(
+    "UPDATE notificaciones SET leida = 1 WHERE id = ?",
+    [id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Notificación marcada como leída" });
+    }
+  );
+});
+
+//Crear mensaje
+
 // Escuchar en el puerto
 app.listen(port, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${port}`);
