@@ -40,26 +40,29 @@ app.get("/", (req, res) => {
 
 // 📌 Rutas para USUARIOS
 app.get("/users", (req, res) => {
-  db.query("SELECT * FROM users WHERE role='user'", (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
-  });
-});
-
-app.get("/admins", (req, res) => {
   db.query(
-    "SELECT u.*, ao.optica_id FROM users u JOIN admins_opticas ao ON u.id = ao.user_id WHERE u.role='admin'",
+    "SELECT u.*, uo.optica_id FROM users u JOIN users_opticas uo ON u.id = uo.user_id WHERE u.role='user'",
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json(results);
     }
   );
 });
-// Obtener óptica de un admin
-app.get("/optica-admin/:id", (req, res) => {
+
+app.get("/admins", (req, res) => {
+  db.query(
+    "SELECT u.*, uo.optica_id FROM users u JOIN users_opticas uo ON u.id = uo.user_id WHERE u.role='admin'",
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+// Obtener óptica de un usuario
+app.get("/optica-usuario/:id", (req, res) => {
   const { id } = req.params;
   db.query(
-    "SELECT optica_id FROM admins_opticas WHERE user_id=?",
+    "SELECT optica_id FROM users_opticas WHERE user_id=?",
     [id],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -71,7 +74,7 @@ app.get("/optica-admin/:id", (req, res) => {
 app.get("/admins-optica/:id", (req, res) => {
   const { id } = req.params;
   db.query(
-    "SELECT * FROM users u JOIN admins_opticas ao ON u.id = ao.user_id WHERE u.role='admin' AND ao.optica_id = ?",
+    "SELECT * FROM users u JOIN users_opticas ao ON u.id = ao.user_id WHERE u.role='admin' AND ao.optica_id = ?",
     [id],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -84,7 +87,7 @@ app.get("/admins-optica/:id", (req, res) => {
 app.put("/admins-optica", (req, res) => {
   const { user_id, optica_id } = req.body;
   db.query(
-    "INSERT INTO admins_opticas (user_id, optica_id) VALUES (?, ?) ON DUPLICATE optica_id UPDATE optica_id = ?",
+    "INSERT INTO users_opticas (user_id, optica_id) VALUES (?, ?) ON DUPLICATE optica_id UPDATE optica_id = ?",
     [user_id, optica_id, optica_id],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -231,7 +234,7 @@ app.post("/login", (req, res) => {
   const { email, password } = req.body;
 
   db.query(
-    "SELECT * FROM users WHERE email = ?",
+    "SELECT u.*, uo.optica_id FROM users u JOIN users_opticas uo ON u.id = uo.user_id WHERE u.email = ?",
     [email],
     async (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -254,6 +257,7 @@ app.post("/login", (req, res) => {
       const surname = user.surname;
       const id = user.id;
       const email_verified = user.email_verified_at;
+      const optica_id = user.optica_id;
       res.json({
         message: "Login correcto",
         token,
@@ -265,6 +269,7 @@ app.post("/login", (req, res) => {
         surname,
         id,
         email_verified,
+        optica_id,
       });
     }
   );
@@ -602,7 +607,8 @@ app.get("/notificaciones/:id/:tipo/:destinatario", (req, res) => {
 });
 
 app.post("/notificaciones", (req, res) => {
-  const { user_id, optica_id, titulo, descripcion, tipo, destinatario } = req.body;
+  const { user_id, optica_id, titulo, descripcion, tipo, destinatario } =
+    req.body;
 
   // Validación básica
   if (!user_id || !optica_id || !titulo) {
