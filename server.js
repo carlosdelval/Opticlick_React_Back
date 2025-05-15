@@ -589,11 +589,11 @@ app.get("/opticas/:id", (req, res) => {
 });
 
 //📌 Rutas para NOTIFICACIONES
-app.get("/notificaciones/:id/:tipo", (req, res) => {
-  const { id, tipo } = req.params;
+app.get("/notificaciones/:id/:tipo/:destinatario", (req, res) => {
+  const { id, tipo, destinatario } = req.params;
   db.query(
-    "SELECT * FROM notificaciones WHERE user_id = ? AND tipo = ? AND leida = 0 ORDER BY created_at DESC",
-    [id, tipo],
+    "SELECT * FROM notificaciones WHERE user_id = ? AND tipo = ? AND destinatario = ? AND leida = 0  ORDER BY created_at DESC",
+    [id, tipo, destinatario],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json(results);
@@ -601,15 +601,29 @@ app.get("/notificaciones/:id/:tipo", (req, res) => {
   );
 });
 
-//Crear notificación
 app.post("/notificaciones", (req, res) => {
-  const { user_id, optica_id, titulo, descripcion, tipo } = req.body;
+  const { user_id, optica_id, titulo, descripcion, tipo, destinatario } = req.body;
+
+  // Validación básica
+  if (!user_id || !optica_id || !titulo) {
+    return res.status(400).json({ error: "Faltan campos requeridos" });
+  }
+
   db.query(
-    "INSERT INTO notificaciones (optica_id, user_id, titulo, descripcion, tipo, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-    [optica_id, user_id, titulo, descripcion, tipo],
+    "INSERT INTO notificaciones (optica_id, user_id, titulo, descripcion, tipo, destinatario, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
+    [optica_id, user_id, titulo, descripcion, tipo, destinatario],
     (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: "Notificación registrada", id: result.insertId });
+      if (err) {
+        console.error("Error en la base de datos:", err);
+        return res.status(500).json({
+          error: "Error al crear la notificación",
+          details: err.message,
+        });
+      }
+      res.json({
+        message: "Notificación registrada",
+        id: result.insertId,
+      });
     }
   );
 });
@@ -626,8 +640,6 @@ app.put("/notificaciones/:id", (req, res) => {
     }
   );
 });
-
-//Crear mensaje
 
 // Escuchar en el puerto
 app.listen(port, () => {
