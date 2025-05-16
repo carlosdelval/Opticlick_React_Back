@@ -234,7 +234,7 @@ app.post("/login", (req, res) => {
   const { email, password } = req.body;
 
   db.query(
-    "SELECT u.*, uo.optica_id FROM users u JOIN users_opticas uo ON u.id = uo.user_id WHERE u.email = ?",
+    "SELECT * FROM users WHERE email = ?",
     [email],
     async (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -257,7 +257,6 @@ app.post("/login", (req, res) => {
       const surname = user.surname;
       const id = user.id;
       const email_verified = user.email_verified_at;
-      const optica_id = user.optica_id;
       res.json({
         message: "Login correcto",
         token,
@@ -269,7 +268,6 @@ app.post("/login", (req, res) => {
         surname,
         id,
         email_verified,
-        optica_id,
       });
     }
   );
@@ -594,10 +592,15 @@ app.get("/opticas/:id", (req, res) => {
 });
 
 //📌 Rutas para NOTIFICACIONES
-app.get("/notificaciones/:id/:tipo/:destinatario", (req, res) => {
-  const { id, tipo, destinatario } = req.params;
+// Obtener todas las notificaciones sin leer (para usuario o admin)
+app.get("/notificaciones/:destinatario/:id/:tipo", (req, res) => {
+  const { destinatario, id, tipo } = req.params;
+  
+  // Determinar qué campo usar en la consulta según el destinatario
+  const campoId = destinatario === "1" ? "user_id" : "optica_id";
+  
   db.query(
-    "SELECT * FROM notificaciones WHERE user_id = ? AND tipo = ? AND destinatario = ? AND leida = 0  ORDER BY created_at DESC",
+    `SELECT * FROM notificaciones WHERE ${campoId} = ? AND tipo = ? AND destinatario = ? AND leida = 0 ORDER BY created_at DESC`,
     [id, tipo, destinatario],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
