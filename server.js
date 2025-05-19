@@ -41,7 +41,7 @@ app.get("/", (req, res) => {
 // 📌 Rutas para USUARIOS
 app.get("/users", (req, res) => {
   db.query(
-    "SELECT u.*, uo.optica_id FROM users u JOIN users_opticas uo ON u.id = uo.user_id WHERE u.role='user'",
+    "SELECT * from users WHERE role='user'",
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json(results);
@@ -83,15 +83,21 @@ app.get("/admins-optica/:id", (req, res) => {
   );
 });
 
-// Asignar óptica a un admin
-app.put("/admins-optica", (req, res) => {
+// Asignar óptica a un usuario
+app.put("/asignar-optica", (req, res) => {
   const { user_id, optica_id } = req.body;
   db.query(
-    "INSERT INTO users_opticas (user_id, optica_id) VALUES (?, ?) ON DUPLICATE optica_id UPDATE optica_id = ?",
-    [user_id, optica_id, optica_id],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: "Óptica asignada al admin" });
+    "INSERT INTO users_opticas (user_id, optica_id) VALUES (?, ?)",
+    [user_id, optica_id],
+    (err) => {
+      if (err) {
+        console.error("Error en la base de datos:", err);
+        return res.status(500).json({
+          error: "Error al asignar óptica al usuario",
+          details: err.message,
+        });
+      }
+      res.json({ message: "Óptica asignada al usuario" });
     }
   );
 });
@@ -109,7 +115,7 @@ app.get("/users/:id", (req, res) => {
 app.get("/users-optica/:id", (req, res) => {
   const { id } = req.params;
   db.query(
-    "SELECT * FROM users u JOIN citas c ON u.id = c.user_id WHERE u.role='user' AND c.optica_id = ? GROUP BY u.id",
+    "SELECT u.*, uo.optica_id FROM users u JOIN users_opticas uo ON u.id = uo.user_id WHERE u.role='user' AND uo.optica_id = ?",
     [id],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -120,6 +126,10 @@ app.get("/users-optica/:id", (req, res) => {
 
 app.put("/users", (req, res) => {
   const { id, name, surname, dni, tlf, email } = req.body;
+  // Validación básica
+  if (!id || !name || !surname || !dni || !tlf || !email) {
+    return res.status(400).json({ error: "Faltan campos requeridos" });
+  }
   db.query(
     "UPDATE users SET name = ?, surname = ?, dni = ?, tlf = ?, email = ?, updated_at = NOW() WHERE id = ?",
     [name, surname, dni, tlf, email, id],
@@ -148,9 +158,18 @@ app.post("/register", (req, res) => {
   const { name, surname, dni, tlf, email, password, role } = req.body;
   const verificationToken = uuidv4();
 
+  // Validación básica
+  if (!name || !surname || !dni || !tlf || !email || !password) {
+    return res.status(400).json({ error: "Faltan campos requeridos" });
+  }
+
+  // Encriptar la contraseña
+  const salt = bcrypt.genSaltSync(10);
+  const hashedPassword = bcrypt.hashSync(password, salt);
+
   db.query(
     "INSERT INTO users (name, surname, dni, tlf, email, password, role, created_at, updated_at, remember_token) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)",
-    [name, surname, dni, tlf, email, password, role, verificationToken],
+    [name, surname, dni, tlf, email, hashedPassword, role, verificationToken],
     async (err, result) => {
       if (err) {
         console.error("Error en la base de datos:", err);
@@ -171,11 +190,11 @@ app.post("/register", (req, res) => {
           errno: err.errno,
         });
       }
-
-      // Enviar email de verificación
+      const userId = result.insertId;
       try {
         await sendVerificationEmail(email, verificationToken);
         res.json({
+          id: userId,
           message:
             "Usuario registrado. Verifica tu email para activar la cuenta.",
         });
@@ -362,6 +381,20 @@ app.delete("/users/:id", (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: "Usuario eliminado" });
   });
+});
+
+// 📌 Eliminar usuario de una óptica
+
+app.delete("/users-optica/:id/:optica_id", (req, res) => {
+  const { id, optica_id } = req.params;
+  db.query(
+    "DELETE FROM users_opticas WHERE user_id = ? AND optica_id = ?",
+    [id, optica_id], 
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Usuario eliminado" });
+    }
+  );
 });
 
 // 📌 Update SOLO contraseña
@@ -595,10 +628,10 @@ app.get("/opticas/:id", (req, res) => {
 // Obtener todas las notificaciones sin leer (para usuario o admin)
 app.get("/notificaciones/:destinatario/:id/:tipo", (req, res) => {
   const { destinatario, id, tipo } = req.params;
-  
+
   // Determinar qué campo usar en la consulta según el destinatario
   const campoId = destinatario === "1" ? "user_id" : "optica_id";
-  
+
   db.query(
     `SELECT * FROM notificaciones WHERE ${campoId} = ? AND tipo = ? AND destinatario = ? AND leida = 0 ORDER BY created_at DESC`,
     [id, tipo, destinatario],
