@@ -40,13 +40,10 @@ app.get("/", (req, res) => {
 
 // 📌 Rutas para USUARIOS
 app.get("/users", (req, res) => {
-  db.query(
-    "SELECT * from users WHERE role='user'",
-    (err, results) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(results);
-    }
-  );
+  db.query("SELECT * from users WHERE role='user'", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
 });
 
 app.get("/admins", (req, res) => {
@@ -345,7 +342,7 @@ const authenticateToken = (req, res, next) => {
 
 // 📌 Actualizar perfil
 app.put("/update-profile", authenticateToken, async (req, res) => {
-  const { name, surname, dni, tlf, email, password } = req.body;
+  const { name, surname, dni, tlf, email, password, optica } = req.body;
   const userId = req.user.id; // 📌 Sacamos el ID del usuario logueado
 
   try {
@@ -354,6 +351,32 @@ app.put("/update-profile", authenticateToken, async (req, res) => {
     if (password) {
       const salt = await bcrypt.genSalt(10);
       hashedPassword = await bcrypt.hash(password, salt);
+    }
+
+    if (email) {
+      // 📌 Comprobar si el email ya está registrado
+      db.query(
+        "SELECT * FROM users WHERE email = ? AND id != ?",
+        [email, userId],
+        (err, results) => {
+          if (err) return res.status(500).json({ error: err.message });
+          if (results.length > 0)
+            return res.status(400).json({ error: "Email ya registrado" });
+        }
+      );
+    }
+
+    // 📌 Comprobar si el DNI ya está registrado
+    if (dni) {
+      db.query(
+        "SELECT * FROM users WHERE dni = ? AND id != ?",
+        [dni, userId],
+        (err, results) => {
+          if (err) return res.status(500).json({ error: err.message });
+          if (results.length > 0)
+            return res.status(400).json({ error: "DNI ya registrado" });
+        }
+      );
     }
 
     // 📌 Actualizar los datos en la BD
@@ -389,7 +412,7 @@ app.delete("/users-optica/:id/:optica_id", (req, res) => {
   const { id, optica_id } = req.params;
   db.query(
     "DELETE FROM users_opticas WHERE user_id = ? AND optica_id = ?",
-    [id, optica_id], 
+    [id, optica_id],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message: "Usuario eliminado" });
