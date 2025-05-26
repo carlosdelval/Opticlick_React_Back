@@ -646,6 +646,63 @@ app.get("/opticas/:id", (req, res) => {
     res.json(results);
   });
 });
+app.post("/opticas", (req, res) => {
+  const { nombre, direccion, telefono} = req.body;
+  // Validación básica
+  if (!nombre || !direccion || !telefono) {
+    return res.status(400).json({ error: "Faltan campos requeridos" });
+  }
+  db.query(
+    "INSERT INTO opticas (nombre, direccion, telefono, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
+    [nombre, direccion, telefono],
+    (err, result) => {
+      if (err) {
+        console.error("Error en la base de datos:", err);
+        return res.status(500).json({
+          error: "Error al crear la óptica",
+          details: err.message,
+          errno: err.errno,
+        });
+      }
+      res.json({
+        message: "Óptica registrada",
+        id: result.insertId,
+      });
+    }
+  );
+});
+
+app.put("/opticas/:id", (req, res) => {
+  const { id } = req.params;
+  const { nombre, direccion, telefono } = req.body;
+  // Validación básica
+  if (!nombre || !direccion || !telefono ) {
+    return res.status(400).json({ error: "Faltan campos requeridos" });
+  }
+  db.query(
+    "UPDATE opticas SET nombre = ?, direccion = ?, telefono = ?, updated_at = NOW() WHERE id = ?",
+    [nombre, direccion, telefono, id],
+    (err, result) => {
+      if (err) {
+        console.error("Error en la base de datos:", err);
+
+        return res.status(500).json({
+          error: "Error al actualizar la óptica",
+          details: err.message,
+          errno: err.errno,
+        });
+      }
+      res.json({ message: "Óptica actualizada" });
+    }
+  );
+});
+app.delete("/opticas/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("DELETE FROM opticas WHERE id = ?", [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: "Óptica eliminada" });
+  });
+});
 
 //📌 Rutas para NOTIFICACIONES
 // Obtener todas las notificaciones sin leer (para usuario o admin)
