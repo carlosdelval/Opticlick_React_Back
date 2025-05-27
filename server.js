@@ -18,20 +18,18 @@ app.use(cors());
 app.use(express.json());
 
 // Conexión a la base de datos
-const db = mysql.createConnection({
-  host: "localhost",
-  user: "dwes",
-  password: "abc123.",
-  database: "opticlick_react",
+const db = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 });
 
-db.connect((err) => {
-  if (err) {
-    console.error("❌ Error al conectar con MySQL:", err);
-    return;
-  }
-  console.log("✅ Conectado a la base de datos MySQL");
-});
+
 
 // Rutas de prueba
 app.get("/", (req, res) => {
@@ -340,6 +338,23 @@ app.post("/login-google", async (req, res) => {
               { id: user.id },
               process.env.JWT_SECRET || "secreto",
               { expiresIn: "24h" }
+            );
+
+            db.query(
+              "INSERT INTO notificaciones (optica_id, user_id, titulo, descripcion, tipo, destinatario, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
+              [
+                0,
+                user.id,
+                "¡Bienvenido a OptiClick!",
+                "Tu cuenta ha sido creada con éxito. Tu contraseña temporal es tu correo electrónico, la cual podrás cambiar en los ajustes de tu perfil además de completar la información de tu perfil.",
+                1,
+                1,
+              ],
+              (err) => {
+                if (err) {
+                  console.error("Error creating welcome notification:", err);
+                }
+              }
             );
 
             return res.json({
@@ -727,7 +742,7 @@ app.put("/citas/:id", (req, res) => {
 
 // 📌 Rutas para ÓPTICAS
 app.get("/opticas", (req, res) => {
-  db.query("SELECT * FROM opticas", (err, results) => {
+  db.query("SELECT * FROM opticas where ID != 0", (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
