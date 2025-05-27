@@ -289,6 +289,100 @@ app.post("/login", (req, res) => {
   );
 });
 
+// Login con Google
+app.post("/login-google", async (req, res) => {
+  const { email, name } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email es requerido" });
+  }
+
+  try {
+    db.query(
+      "SELECT * FROM users WHERE email = ?",
+      [email],
+      async (err, results) => {
+        if (err) {
+          console.error("Database error:", err);
+          return res
+            .status(500)
+            .json({ error: "Database error", details: err.message });
+        }
+
+        let user;
+
+        if (results.length === 0) {
+          // Crear nuevo usuario
+          const newUser = {
+            email,
+            name: name || email.split("@")[0], // Usa el nombre o parte del email
+            role: "user",
+            password: bcrypt.hashSync(email, 10), // Contraseña por defecto para Google
+            created_at: new Date(),
+            updated_at: new Date(),
+            email_verified_at: new Date(), // Google ya verificó el email
+          };
+
+          db.query("INSERT INTO users SET ?", newUser, (err, result) => {
+            if (err) {
+              console.error("Error creating user:", err);
+              return res
+                .status(500)
+                .json({ error: "Error creating user", details: err.message });
+            }
+
+            user = {
+              id: result.insertId,
+              ...newUser,
+            };
+
+            const token = jwt.sign(
+              { id: user.id },
+              process.env.JWT_SECRET || "secreto",
+              { expiresIn: "24h" }
+            );
+
+            return res.json({
+              token,
+              role: user.role,
+              email: user.email,
+              name: user.name,
+              id: user.id,
+              email_verified: user.email_verified_at,
+            });
+          });
+        } else {
+          // Usuario existente
+          user = results[0];
+          const token = jwt.sign(
+            { id: user.id },
+            process.env.JWT_SECRET || "secreto",
+            { expiresIn: "24h" }
+          );
+
+          // En tu endpoint /login-google
+          return res.json({
+            token,
+            role: user.role,
+            email: user.email,
+            name: user.name || name,
+            tlf: user.tlf || null, // Asegúrate de incluir todos los campos
+            dni: user.dni || null,
+            surname: user.surname || null,
+            id: user.id,
+            email_verified: user.email_verified_at,
+          });
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Server error:", error);
+    res
+      .status(500)
+      .json({ error: "Internal server error", details: error.message });
+  }
+});
+
 // Reenviar email de verificación
 app.post("/resend-email", (req, res) => {
   const { email } = req.body;
@@ -647,7 +741,7 @@ app.get("/opticas/:id", (req, res) => {
   });
 });
 app.post("/opticas", (req, res) => {
-  const { nombre, direccion, telefono} = req.body;
+  const { nombre, direccion, telefono } = req.body;
   // Validación básica
   if (!nombre || !direccion || !telefono) {
     return res.status(400).json({ error: "Faltan campos requeridos" });
@@ -676,7 +770,7 @@ app.put("/opticas/:id", (req, res) => {
   const { id } = req.params;
   const { nombre, direccion, telefono } = req.body;
   // Validación básica
-  if (!nombre || !direccion || !telefono ) {
+  if (!nombre || !direccion || !telefono) {
     return res.status(400).json({ error: "Faltan campos requeridos" });
   }
   db.query(

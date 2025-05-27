@@ -2,7 +2,7 @@
 import nodemailer from "nodemailer";
 
 export const sendVerificationEmail = async (email, verificationToken) => {
-  const verificationUrl = `http://localhost:5173/verify-email?token=${verificationToken}`;
+  const verificationUrl = `https://opticlick-6598e.web.app/verify-email?token=${verificationToken}`;
 
   const transporter = nodemailer.createTransport({
     host: "smtp.mailtrap.io",
