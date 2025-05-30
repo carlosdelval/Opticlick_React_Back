@@ -310,6 +310,8 @@ app.post("/login-google", async (req, res) => {
         if (results.length === 0) {
           const newUser = {
             email,
+            surname: "",
+            tlf: "",
             name: name || email.split("@")[0],
             role: "user",
             password: bcrypt.hashSync(email, 10),
