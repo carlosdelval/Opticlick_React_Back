@@ -29,8 +29,6 @@ const db = mysql.createPool({
   queueLimit: 0,
 });
 
-
-
 // Rutas de prueba
 app.get("/", (req, res) => {
   res.send("🔥 API funcionando correctamente 🔥");
@@ -310,32 +308,27 @@ app.post("/login-google", async (req, res) => {
         let user;
 
         if (results.length === 0) {
-          // Crear nuevo usuario
           const newUser = {
             email,
-            name: name || email.split("@")[0], // Usa el nombre o parte del email
+            name: name || email.split("@")[0],
             role: "user",
-            password: bcrypt.hashSync(email, 10), // Contraseña por defecto para Google
+            password: bcrypt.hashSync(email, 10),
             created_at: new Date(),
             updated_at: new Date(),
-            email_verified_at: new Date(), // Google ya verificó el email
+            email_verified_at: new Date(),
           };
 
           db.query("INSERT INTO users SET ?", newUser, (err, result) => {
             if (err) {
-              console.error("Error creating user:", err);
+              console.error("Error creating user:", err.message);
               return res
                 .status(500)
                 .json({ error: "Error creating user", details: err.message });
             }
 
-            user = {
-              id: result.insertId,
-              ...newUser,
-            };
-
+            const userId = result.insertId;
             const token = jwt.sign(
-              { id: user.id },
+              { id: userId },
               process.env.JWT_SECRET || "secreto",
               { expiresIn: "24h" }
             );
@@ -344,27 +337,31 @@ app.post("/login-google", async (req, res) => {
               "INSERT INTO notificaciones (optica_id, user_id, titulo, descripcion, tipo, destinatario, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
               [
                 0,
-                user.id,
+                userId,
                 "¡Bienvenido a OptiClick!",
-                "Tu cuenta ha sido creada con éxito. Tu contraseña temporal es tu correo electrónico, la cual podrás cambiar en los ajustes de tu perfil además de completar la información de tu perfil.",
+                "Tu cuenta ha sido creada con éxito. Tu contraseña temporal es tu correo electrónico. Por favor, cámbiala en tu perfil para mayor seguridad.",
                 1,
                 1,
               ],
-              (err) => {
-                if (err) {
-                  console.error("Error creating welcome notification:", err);
+              (notiErr) => {
+                if (notiErr) {
+                  console.error(
+                    "Error creating welcome notification:",
+                    notiErr.message
+                  );
+                  // Puedes continuar de todos modos
                 }
+
+                return res.json({
+                  token,
+                  role: newUser.role,
+                  email: newUser.email,
+                  name: newUser.name,
+                  id: userId,
+                  email_verified: newUser.email_verified_at,
+                });
               }
             );
-
-            return res.json({
-              token,
-              role: user.role,
-              email: user.email,
-              name: user.name,
-              id: user.id,
-              email_verified: user.email_verified_at,
-            });
           });
         } else {
           // Usuario existente
