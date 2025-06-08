@@ -276,32 +276,42 @@ app.post("/login", (req, res) => {
         return res.status(401).json({ error: "Usuario no encontrado" });
 
       const user = results[0];
-      const isMatch = await bcrypt.compare(password, user.password);
 
-      if (!isMatch)
-        return res.status(401).json({ error: "Contraseña incorrecta" });
+      // 🛡️ Protección: asegurarse de que user.password exista
+      if (!user.password) {
+        return res.status(400).json({
+          error: "El usuario no tiene contraseña definida",
+        });
+      }
 
-      const token = jwt.sign({ id: user.id }, "secreto", { expiresIn: "24h" });
-      const role = user.role;
-      const name = user.name;
-      const email = user.email;
-      const tlf = user.tlf;
-      const dni = user.dni;
-      const surname = user.surname;
-      const id = user.id;
-      const email_verified = user.email_verified_at;
-      res.json({
-        message: "Login correcto",
-        token,
-        role,
-        name,
-        email,
-        tlf,
-        dni,
-        surname,
-        id,
-        email_verified,
-      });
+      try {
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch)
+          return res.status(401).json({ error: "Contraseña incorrecta" });
+
+        const token = jwt.sign({ id: user.id }, "secreto", {
+          expiresIn: "24h",
+        });
+
+        res.json({
+          message: "Login correcto",
+          token,
+          role: user.role,
+          name: user.name,
+          email: user.email,
+          tlf: user.tlf,
+          dni: user.dni,
+          surname: user.surname,
+          id: user.id,
+          email_verified: user.email_verified_at,
+        });
+      } catch (err) {
+        console.error("Error al comparar contraseñas:", err.message);
+        res
+          .status(500)
+          .json({ error: "Error interno al verificar la contraseña" });
+      }
     }
   );
 });
