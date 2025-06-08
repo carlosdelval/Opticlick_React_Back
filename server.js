@@ -13,8 +13,28 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
+// Lista de orígenes permitidos
+const allowedOrigins = [
+  "http://localhost:5173", // entorno local (Vite)
+  "https://opticlick-6598e.web.app", // Firebase Hosting
+  "https://opticlick-6598e.firebaseapp.com", // variante que Firebase también puede usar
+];
 
-app.use(cors());
+// Middleware CORS personalizado
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Permite herramientas sin origen (Postman, curl)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS bloqueado: origen no permitido"));
+      }
+    },
+    credentials: true, // necesario si usas cookies o headers de autenticación
+  })
+);
+
 app.use(express.json());
 
 // Conexión a la base de datos
@@ -117,6 +137,7 @@ app.get("/users-optica/:id", (req, res) => {
   );
 });
 
+// Actualizar usuario
 app.put("/users", (req, res) => {
   const { id, name, surname, dni, tlf, email } = req.body;
   // Validación básica
